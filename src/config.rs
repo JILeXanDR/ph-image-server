@@ -1,9 +1,7 @@
-use std::fmt::Error;
 use std::fs::File;
-use std::io;
 use std::io::Read;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// Config of app.
 #[derive(Debug, PartialEq, Deserialize)]
