@@ -20,14 +20,7 @@ fn main() {
 
     println!("Loading app with config file {}", args.config);
 
-    let config = config::load(args.config);
+    let config = config::load(args.config).expect("Failed to load config");
 
-    match config {
-        Ok(config) => {
-            println!("Loaded config {:?}", config);
-        }
-        Err(err) => {
-            println!("Some problems while loading a config {}", err);
-        }
-    }
+    print!("Listen to {}", config.listen);
 }
