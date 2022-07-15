@@ -38,10 +38,8 @@ impl From<serde_yaml::Error> for ErrKind {
 pub fn load(path: String) -> Result<Config, ErrKind> {
     let mut file = File::open(path)?;
 
-    // let mut file = File::open(path).unwrap();
-
     let mut content: String = String::new();
-    file.read_to_string(&mut content).unwrap();
+    file.read_to_string(&mut content)?;
 
     let config : Config = serde_yaml::from_str(content.as_str())?;
 
