@@ -30,12 +30,12 @@ async fn main() {
 
     // A `Service` is needed for every connection, so this
     // creates one from our `hello_world` function.
-    let make_svc = make_service_fn(|_conn| async {
+    let make_service = make_service_fn(|_conn| async {
         // service_fn converts our function into a `Service`
         Ok::<_, Infallible>(service_fn(hello_world))
     });
 
-    let server = Server::bind(&addr).serve(make_svc);
+    let server = Server::bind(&addr).serve(make_service);
 
     println!("Open HTTP server on http://{}", addr);
 
@@ -47,4 +47,13 @@ async fn main() {
 
 async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new("Hello, World".into()))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
+    }
 }
