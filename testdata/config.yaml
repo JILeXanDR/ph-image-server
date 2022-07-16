@@ -1,3 +1,5 @@
 listen: 127.0.0.1:9123
-memcached:
-  address: 172.17.0.2:11211
+reportToV2: "http://some-host:9999/report-stats-v2?token=token"
+metrics:
+  enabled: true
+  addr: 127.0.0.1:9010

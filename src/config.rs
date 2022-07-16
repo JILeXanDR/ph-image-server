@@ -7,13 +7,16 @@ use serde::Deserialize;
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Config {
     pub listen: String,
-    pub memcached: Memcached,
+    #[serde(rename(deserialize = "reportToV2"))]
+    pub report_to_v2: String,
+    pub metrics: Metrics,
 }
 
-/// Configuration for memcache storage.
+/// Configuration for prometheus metrics.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Memcached {
-    pub address: String,
+pub struct Metrics {
+    pub enabled: bool,
+    pub addr: String,
 }
 
 #[derive(Debug)]
@@ -56,11 +59,9 @@ mod tests {
         let result = load("wefwefwefwef.yaml".to_string());
 
         match result {
-            Ok(_) => {},
-            Err(e) => match e {
-                ErrKind::ReadError(_) => {},
-                _ => panic!("unexpected error kind {:?}", e),
-            },
+            Err(ErrKind::ReadError(_)) => {},
+            Err(e) => panic!("unexpected error kind {:?}", e),
+            _ => (),
         }
     }
 
@@ -69,11 +70,9 @@ mod tests {
         let result = load("testdata/bad_config.yaml".to_string());
 
         match result {
-            Ok(_) => {},
-            Err(e) => match e {
-                ErrKind::DecodeError(_) => {},
-                _ => panic!("unexpected error kind {:?}", e),
-            },
+            Err(ErrKind::DecodeError(_)) => {},
+            Err(e) => panic!("unexpected error kind {:?}", e),
+            _ => (),
         }
     }
 
@@ -82,6 +81,8 @@ mod tests {
         let config = load("testdata/config.yaml".to_string()).expect("failed to load config");
 
         assert_eq!(config.listen, "127.0.0.1:9123");
-        assert_eq!(config.memcached.address, "172.17.0.2:11211");
+        assert_eq!(config.report_to_v2, "http://some-host:9999/report-stats-v2?token=token");
+        assert_eq!(config.metrics.enabled, true);
+        assert_eq!(config.metrics.addr, "127.0.0.1:9010");
     }
 }
