@@ -12,6 +12,12 @@ pub struct Config {
     pub metrics: Metrics,
 }
 
+impl Config {
+    pub fn from_yaml_file_path(path: String) -> Result<Self, ErrKind> {
+        load(path)
+    }
+}
+
 /// Configuration for prometheus metrics.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Metrics {
@@ -44,11 +50,10 @@ pub fn load(path: String) -> Result<Config, ErrKind> {
     let mut content: String = String::new();
     file.read_to_string(&mut content)?;
 
-    let config : Config = serde_yaml::from_str(content.as_str())?;
+    let config: Config = serde_yaml::from_str(content.as_str())?;
 
     Ok(config)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -59,7 +64,7 @@ mod tests {
         let result = load("wefwefwefwef.yaml".to_string());
 
         match result {
-            Err(ErrKind::ReadError(_)) => {},
+            Err(ErrKind::ReadError(_)) => {}
             Err(e) => panic!("unexpected error kind {:?}", e),
             _ => (),
         }
@@ -70,7 +75,7 @@ mod tests {
         let result = load("testdata/bad_config.yaml".to_string());
 
         match result {
-            Err(ErrKind::DecodeError(_)) => {},
+            Err(ErrKind::DecodeError(_)) => {}
             Err(e) => panic!("unexpected error kind {:?}", e),
             _ => (),
         }
@@ -80,9 +85,16 @@ mod tests {
     fn load_valid_file() {
         let config = load("testdata/config.yaml".to_string()).expect("failed to load config");
 
-        assert_eq!(config.listen, "127.0.0.1:9123");
-        assert_eq!(config.report_to_v2, "http://some-host:9999/report-stats-v2?token=token");
-        assert_eq!(config.metrics.enabled, true);
-        assert_eq!(config.metrics.addr, "127.0.0.1:9010");
+        assert_eq!(
+            config,
+            Config {
+                listen: "127.0.0.1:9123".to_string(),
+                report_to_v2: "http://some-host:9999/report-stats-v2?token=token".to_string(),
+                metrics: Metrics {
+                    enabled: true,
+                    addr: "127.0.0.1:9010".to_string()
+                }
+            }
+        );
     }
 }
