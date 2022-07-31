@@ -13,7 +13,7 @@ pub struct IconRequest {
     #[serde(default)]
     pub icon: String,
     #[serde(default, rename(serialize = "uid", deserialize = "uid"))]
-    web_user_id: i64,
+    pub web_user_id: i64,
     #[serde(default, rename(serialize = "cid", deserialize = "cid"))]
     campaign_id: i64,
     #[serde(default)]
