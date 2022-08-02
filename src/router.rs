@@ -1,27 +1,44 @@
 use hyper::{Body, Method, Request, Response, StatusCode};
+use tokio::time::Instant;
+use user_agent_parser::UserAgentParser;
 
-pub type HandlerFn = fn(Request<Body>) -> Response<Body>;
+use crate::{handlers, metrics};
 
-// pub async fn prepare_matcher(
-//     handlers: Handlers,
-// ) -> Fn(Request<Body>) -> Result<Response<Body, Infallible>> {
-// }
+pub fn match_request_to_handler(req: Request<Body>) -> Response<Body> {
+    let started = Instant::now();
 
-// pub async fn get_matcher(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-//     println!("Match handler for {:} {:}", req.method(), req.uri().path());
-//
-//     // Match incoming request to one of existing handlers.
-//     let handler: Option<HandlerFn> = match (req.method(), req.uri().path()) {
-//         (&Method::GET, "/img.php") => Some(get_image),
-//         (&Method::GET, "/healthz") => Some(check_health),
-//         (&Method::GET, "/ping") => Some(ping),
-//         _ => None,
-//     };
-//
-//     let response = match handler {
-//         Some(handle) => handle(req),
-//         None => not_found(req),
-//     };
-//
-//     Ok(response)
-// }
+    // FIXME: it must in main.rs.
+    let ua_parser =
+        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes");
+
+    let result = match (req.method(), req.uri().path()) {
+        (&Method::GET, "/img.php") => {
+            // FIXME:    | |_____________^ returns an `async` block that contains a reference to a captured variable, which then escapes the closure body
+            // if config.metrics.enabled {
+            metrics::CDN_REQUESTS_COUNTER.inc();
+            // }
+            handlers::get_image(req, &ua_parser)
+        }
+        (&Method::GET, "/healthz") => handlers::check_health(req),
+        (&Method::GET, "/ping") => handlers::ping(req),
+        _ => handlers::not_found(req),
+    };
+
+    let response = match result {
+        Ok(response) => response,
+        Err(err) => {
+            println!("Error while executing handler {:?}", err);
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("internal server error"))
+                .expect("Failed to write HTTP response")
+        }
+    };
+
+    println!(
+        "Handler processing done in {:?}",
+        Instant::now().duration_since(started)
+    );
+
+    response
+}

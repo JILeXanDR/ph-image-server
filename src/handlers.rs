@@ -1,11 +1,11 @@
 use std::collections::HashMap;
+use std::error::Error;
 
 use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response, StatusCode};
 use user_agent_parser::UserAgentParser;
 
 use crate::models::icon::IconRequest;
-use crate::models::useragent;
 use crate::models::useragent::{
     get_browser_from_parsed_user_agent, get_device_from_parsed_user_agent,
     get_os_from_parsed_user_agent,
@@ -13,7 +13,10 @@ use crate::models::useragent::{
 use crate::stats;
 
 // http://127.0.0.1:9123/img.php?v=2&id=eyJpY29uIjoiaWNvbi5wbmciLCJ1aWQiOjExMSwiY2lkIjoyMjIsIm9zIjoxMjMsImJyb3dzZXIiOjEyLCJjb3VudHJ5IjoyMTMsIm9wZXJhdG9yIjoxMjMsInN1YkFjYyI6MjMsInN1YklkIjoyMjIyMjIsImFkdlR5cGUiOiJQdXNoIiwidHJhZmZpY0NoYW5uZWwiOiJGZWVkIn0=
-pub fn get_image(req: Request<Body>, ua_parser: UserAgentParser) -> Response<Body> {
+pub fn get_image(
+    req: Request<Body>,
+    ua_parser: &UserAgentParser,
+) -> Result<Response<Body>, Box<dyn Error>> {
     let mut response: Response<Body> = Response::new(Body::default());
 
     let params: HashMap<String, String> = req
@@ -30,7 +33,7 @@ pub fn get_image(req: Request<Body>, ua_parser: UserAgentParser) -> Response<Bod
     if version.is_none() {
         println!("version is missing");
         *response.status_mut() = StatusCode::BAD_REQUEST;
-        return response;
+        return Ok(response);
     }
 
     let version = version.unwrap();
@@ -38,21 +41,21 @@ pub fn get_image(req: Request<Body>, ua_parser: UserAgentParser) -> Response<Bod
     if version != "2" {
         println!("version `{:}` not supported", version);
         *response.status_mut() = StatusCode::BAD_REQUEST;
-        return response;
+        return Ok(response);
     }
 
     let id = params.get("id");
     if id.is_none() {
         println!("id is missing");
         *response.status_mut() = StatusCode::BAD_REQUEST;
-        return response;
+        return Ok(response);
     }
 
     let id = id.unwrap();
     if id == "" {
         println!("id is empty");
         *response.status_mut() = StatusCode::BAD_REQUEST;
-        return response;
+        return Ok(response);
     }
 
     println!("found id `{:}`", id);
@@ -97,29 +100,34 @@ pub fn get_image(req: Request<Body>, ua_parser: UserAgentParser) -> Response<Bod
         }
     };
 
-    response
+    Ok(response)
 }
 
 // http://127.0.0.1:9123/healthz
-pub fn check_health(_: Request<Body>) -> Response<Body> {
-    Response::builder()
+pub fn check_health(_: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+    Ok(Response::builder()
         .status(StatusCode::OK)
-        .body(Body::empty())
-        .unwrap()
+        .body(Body::empty())?)
 }
 
 // http://127.0.0.1:9123/ping
-pub fn ping(_: Request<Body>) -> Response<Body> {
-    Response::builder()
+pub fn ping(_: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+    Ok(Response::builder()
         .status(StatusCode::OK)
-        .body(Body::from("pong"))
-        .unwrap()
+        .body(Body::from("pong"))?)
 }
 
-pub fn not_found(req: Request<Body>) -> Response<Body> {
+pub fn not_found(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
     let body = format!("can't handle {:} {:}", req.method(), req.uri().path());
-    Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body(Body::from(body))
+        .body(Body::from(body))?)
+}
+
+fn unwrap_hyper_http_err_log_and_respond_500(err: hyper::http::Error) -> Response<Body> {
+    println!("Error while writing response {:?}", err);
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::from("server error"))
         .unwrap()
 }

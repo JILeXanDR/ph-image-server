@@ -8,8 +8,9 @@ use std::net::SocketAddr;
 use clap::Parser;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Method, Request, Response, Server};
-use prometheus::{Counter, Encoder, Opts, Registry, TextEncoder};
+use hyper::Body;
+use hyper::Request;
+use hyper::Server;
 use tokio::spawn;
 use user_agent_parser::UserAgentParser;
 
@@ -37,53 +38,19 @@ async fn main() {
 
     let config = config::load(args.config).expect("Failed to load config");
 
-    let addr: SocketAddr = config
-        .listen
-        .parse()
-        .expect("Unable to parse socket address");
+    let ua_parser =
+        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes");
 
-    let make_svc = make_service_fn(|_socket: &AddrStream| {
-        async {
-            Ok::<_, Infallible>(service_fn(move |req: Request<Body>| async {
-                println!("Match handler for {:} {:}", req.method(), req.uri().path());
-
-                // FIXME: it was the most easiest way to fix lifetime errors to move initialization here.
-                //  It makes it very slow about 150 ms per request.
-                let ua_parser = UserAgentParser::from_path("etc/regexes.yaml").unwrap();
-
-                // Match incoming request to one of existing handlers.
-                let response: Response<Body> = match (req.method(), req.uri().path()) {
-                    (&Method::GET, "/img.php") => {
-                        // FIXME:    | |_____________^ returns an `async` block that contains a reference to a captured variable, which then escapes the closure body
-                        // if config.metrics.enabled {
-                        metrics::CDN_REQUESTS_COUNTER.inc();
-                        // }
-                        handlers::get_image(req, ua_parser)
-                    }
-                    (&Method::GET, "/healthz") => handlers::check_health(req),
-                    (&Method::GET, "/ping") => handlers::ping(req),
-                    _ => handlers::not_found(req),
-                };
-
-                Ok::<_, Infallible>(response)
-            }))
-        }
-    });
-
-    let server = Server::bind(&addr)
-        .serve(make_svc)
-        .with_graceful_shutdown(shutdown_signal());
-
-    // It hosts metrics on http://127.0.0.1:9010/metrics.
+    // If prometheus metrics enabled it hosts them on http://127.0.0.1:9010/metrics.
     if config.metrics.enabled {
         spawn(async {
-            if let Err(e) = metrics::serve_metrics(config.metrics.addr).await {
+            if let Err(e) = metrics::serve(config.metrics.addr).await {
                 eprintln!("metrics server error: {}", e);
             }
         });
     }
 
-    println!("Listening TCP connections on http://{}", addr);
+    let server = serve(config.listen, ua_parser);
 
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
@@ -95,4 +62,24 @@ async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
         .expect("failed to install CTRL+C signal handler");
+}
+
+async fn serve(addr: String, ua_parser: UserAgentParser) -> hyper::Result<()> {
+    let addr: SocketAddr = addr.parse().expect("Unable to parse socket address");
+
+    let make_svc = make_service_fn(|_socket: &AddrStream| async {
+        Ok::<_, Infallible>(service_fn(move |req: Request<Body>| async {
+            println!("Requested {:} {:}", req.method(), req.uri().path());
+            let response = router::match_request_to_handler(req);
+            return Ok::<_, Infallible>(response);
+        }))
+    });
+
+    let server = Server::bind(&addr)
+        .serve(make_svc)
+        .with_graceful_shutdown(shutdown_signal());
+
+    println!("Listening TCP connections on http://{}", addr);
+
+    server.await
 }

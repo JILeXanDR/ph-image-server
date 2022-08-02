@@ -2,12 +2,11 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::net::SocketAddr;
 
-use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server};
 use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounter, TextEncoder};
-use prometheus::{gather, labels, opts, register_int_counter};
+use prometheus::{gather, opts, register_int_counter};
 
 use crate::handlers;
 
@@ -30,22 +29,19 @@ fn to_buffer() -> Vec<u8> {
     buffer
 }
 
-pub async fn serve_metrics(addr: String) -> Result<hyper::Result<()>, Box<dyn Error>> {
-    let addr: SocketAddr = addr.parse().expect("Unable to parse socket address");
+pub async fn serve(addr: String) -> Result<hyper::Result<()>, Box<dyn Error>> {
+    let addr: SocketAddr = addr.parse()?;
 
-    let make_svc = make_service_fn(|_socket: &AddrStream| async {
+    let make_svc = make_service_fn(|_| async {
         Ok::<_, Infallible>(service_fn(move |req: Request<Body>| async {
-            let response: Response<Body> = match (req.method(), req.uri().path()) {
-                (&Method::GET, "/metrics") => {
-                    Response::builder().body(Body::from(to_buffer())).unwrap()
-                }
-                _ => handlers::not_found(req),
-            };
-            Ok::<_, Infallible>(response)
+            if !(req.method() == Method::GET && req.uri().path() == "/metrics") {
+                return Ok::<_, Infallible>(handlers::not_found(req).unwrap());
+            }
+            Ok::<_, Infallible>(Response::builder().body(Body::from(to_buffer())).unwrap())
         }))
     });
 
-    let server = Server::bind(&addr).serve(make_svc);
+    let server = Server::try_bind(&addr)?.serve(make_svc);
 
     println!("Listening metrics TCP connections on http://{}", addr);
 

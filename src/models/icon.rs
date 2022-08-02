@@ -1,7 +1,7 @@
 extern crate base64;
 extern crate serde_json;
 
-use std::{error::Error, str::from_utf8};
+use std::error::Error;
 
 use base64::{decode, encode};
 use serde::{Deserialize, Serialize};
