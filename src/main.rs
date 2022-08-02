@@ -2,7 +2,6 @@
 
 extern crate hyper;
 
-use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
@@ -10,8 +9,8 @@ use clap::Parser;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server};
-use prometheus::gather;
 use prometheus::{Counter, Encoder, Opts, Registry, TextEncoder};
+use tokio::spawn;
 use user_agent_parser::UserAgentParser;
 
 mod config;
@@ -55,6 +54,7 @@ async fn main() {
                 // Match incoming request to one of existing handlers.
                 let response: Response<Body> = match (req.method(), req.uri().path()) {
                     (&Method::GET, "/img.php") => {
+                        // FIXME:    | |_____________^ returns an `async` block that contains a reference to a captured variable, which then escapes the closure body
                         // if config.metrics.enabled {
                         metrics::CDN_REQUESTS_COUNTER.inc();
                         // }
@@ -62,10 +62,6 @@ async fn main() {
                     }
                     (&Method::GET, "/healthz") => handlers::check_health(req),
                     (&Method::GET, "/ping") => handlers::ping(req),
-                    // TODO: it must be another server on config.metrics.addr.
-                    (&Method::GET, "/metrics") => Response::builder()
-                        .body(Body::from(metrics::to_buffer()))
-                        .unwrap(),
                     _ => handlers::not_found(req),
                 };
 
@@ -74,13 +70,22 @@ async fn main() {
         }
     });
 
-    let server = Server::bind(&addr).serve(make_svc);
+    let server = Server::bind(&addr)
+        .serve(make_svc)
+        .with_graceful_shutdown(shutdown_signal());
 
-    let graceful = server.with_graceful_shutdown(shutdown_signal());
+    // It hosts metrics on http://127.0.0.1:9010/metrics.
+    if config.metrics.enabled {
+        spawn(async {
+            if let Err(e) = metrics::serve_metrics(config.metrics.addr).await {
+                eprintln!("metrics server error: {}", e);
+            }
+        });
+    }
 
     println!("Listening TCP connections on http://{}", addr);
 
-    if let Err(e) = graceful.await {
+    if let Err(e) = server.await {
         eprintln!("server error: {}", e);
     }
 }
