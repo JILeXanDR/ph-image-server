@@ -1,12 +1,14 @@
+use crate::models::advertisement::Advertisement;
+
 pub struct ShowStatistic {
-    pub uid: i8,
-    pub cid: i8,
+    pub uid: i64,
+    pub cid: i64,
     pub os: i8,
     pub browser: i8,
-    pub country: i8,
-    pub sub_acc: i8,
-    pub operator: i8,
-    pub adv_type: i8,
+    pub country: i64,
+    pub sub_acc: i64,
+    pub operator: i64,
+    pub adv_type: Advertisement,
     pub device: i8,
 }
 

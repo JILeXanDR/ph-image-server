@@ -15,7 +15,7 @@ pub struct IconRequest {
     #[serde(default, rename(serialize = "uid", deserialize = "uid"))]
     pub web_user_id: i64,
     #[serde(default, rename(serialize = "cid", deserialize = "cid"))]
-    campaign_id: i64,
+    pub campaign_id: i64,
     #[serde(default)]
     os: i64,
     // TODO: implement OS type like in Go?
@@ -23,15 +23,15 @@ pub struct IconRequest {
     browser: i64,
     // TODO: implement Browser type like in Go?
     #[serde(default, rename(serialize = "country", deserialize = "country"))]
-    country_id: i64,
+    pub country_id: i64,
     #[serde(default)]
-    operator: i64,
+    pub operator: i64,
     #[serde(default, rename(serialize = "subAcc", deserialize = "subAcc"))]
-    sub_acc_id: i64,
+    pub sub_acc_id: i64,
     #[serde(default, rename(serialize = "subId", deserialize = "subId"))]
     subscription_id: i64,
     #[serde(default, rename(serialize = "advType", deserialize = "advType"))]
-    advertisement_type: Advertisement,
+    pub advertisement_type: Advertisement,
     #[serde(
         default,
         rename(serialize = "trafficChannel", deserialize = "trafficChannel")
