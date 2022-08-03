@@ -4,11 +4,13 @@ extern crate hyper;
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use clap::Parser;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::Body;
+use hyper::{Body, Response};
+use hyper::header::USER_AGENT;
 use hyper::Request;
 use hyper::Server;
 use tokio::spawn;
@@ -38,8 +40,8 @@ async fn main() {
 
     let config = config::load(args.config).expect("Failed to load config");
 
-    let ua_parser =
-        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes");
+    let ua_parser = Arc::new(
+        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes"));
 
     // If prometheus metrics enabled it hosts them on http://127.0.0.1:9010/metrics.
     if config.metrics.enabled {
@@ -64,15 +66,21 @@ async fn shutdown_signal() {
         .expect("failed to install CTRL+C signal handler");
 }
 
-async fn serve(addr: String, ua_parser: UserAgentParser) -> hyper::Result<()> {
+async fn serve(addr: String, ua_parser: Arc<UserAgentParser>) -> hyper::Result<()> {
     let addr: SocketAddr = addr.parse().expect("Unable to parse socket address");
 
-    let make_svc = make_service_fn(|_socket: &AddrStream| async {
-        Ok::<_, Infallible>(service_fn(move |req: Request<Body>| async {
-            println!("Requested {:} {:}", req.method(), req.uri().path());
-            let response = router::match_request_to_handler(req);
-            return Ok::<_, Infallible>(response);
-        }))
+    let make_svc = make_service_fn(move |_socket: &AddrStream| {
+        let ua_parser = ua_parser.clone();
+        async move {
+            Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
+                let ua_parser = ua_parser.clone();
+                async move {
+                    println!("Requested {:} {:}", req.method(), req.uri().path());
+                    let response = router::match_request_to_handler(req, ua_parser);
+                    Ok::<_, Infallible>(response)
+                }
+            }))
+        }
     });
 
     let server = Server::bind(&addr)
