@@ -1,10 +1,11 @@
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Read;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Configuration for app.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Config {
     pub listen: String,
     #[serde(rename(deserialize = "reportToV2"))]
@@ -12,14 +13,18 @@ pub struct Config {
     pub metrics: Metrics,
 }
 
-impl Config {
-    pub fn from_yaml_file_path(path: String) -> Result<Self, ErrKind> {
-        load(path)
+impl Display for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string_pretty(&self).unwrap();
+
+        f.write_str(json.as_str()).unwrap();
+
+        Ok(())
     }
 }
 
 /// Configuration for prometheus metrics.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Metrics {
     pub enabled: bool,
     pub addr: String,

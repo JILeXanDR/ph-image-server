@@ -1,10 +1,6 @@
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-
-use serde::{Deserialize, Serialize};
 use serde_repr::*;
 
-use crate::models::advertisement::Advertisement::{Push, Unknown};
+use crate::models::advertisement::Advertisement::Push;
 
 #[derive(Debug, PartialEq, Deserialize_repr, Serialize_repr, Copy, Clone)]
 #[repr(u8)]
@@ -23,6 +19,7 @@ impl Default for Advertisement {
 
 #[cfg(test)]
 mod tests {
+    use serde::Deserialize;
     use serde_json::json;
 
     use super::*;

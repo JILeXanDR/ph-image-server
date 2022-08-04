@@ -1,26 +1,22 @@
 #![deny(elided_lifetimes_in_paths)]
 
-extern crate hyper;
+use std::time::Duration;
+use std::{net::SocketAddr, sync::Arc};
 
-use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
-
+use actix_web::{App, HttpResponse, HttpServer};
 use clap::Parser;
-use hyper::server::conn::AddrStream;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Response};
-use hyper::header::USER_AGENT;
-use hyper::Request;
-use hyper::Server;
 use tokio::spawn;
 use user_agent_parser::UserAgentParser;
+
+use crate::{
+    handlers::{check_health, get_image, ping},
+    metrics::get_metrics,
+};
 
 mod config;
 mod handlers;
 mod metrics;
 mod models;
-mod router;
 mod stats;
 
 /// Image CDN server
@@ -32,62 +28,56 @@ struct Args {
     config: String,
 }
 
-#[tokio::main]
-async fn main() {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     println!("Loading app with config file {}", args.config);
 
     let config = config::load(args.config).expect("Failed to load config");
 
-    let ua_parser = Arc::new(
-        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes"));
+    println!("Config is ready {:#}", config);
+
+    let ua_parser = UserAgentParser::from_path("etc/regexes.yaml")
+        .expect("Failed to load YAML file with regexes");
 
     // If prometheus metrics enabled it hosts them on http://127.0.0.1:9010/metrics.
     if config.metrics.enabled {
-        spawn(async {
-            if let Err(e) = metrics::serve(config.metrics.addr).await {
-                eprintln!("metrics server error: {}", e);
+        spawn(async move {
+            let addr: SocketAddr = config.metrics.addr.parse().unwrap();
+
+            let server = HttpServer::new(|| App::new().service(get_metrics))
+                .bind(addr)
+                .unwrap()
+                .run();
+
+            println!("Starting serving prometheus metrics on http://{:}", addr);
+
+            if let Err(e) = server.await {
+                eprintln!("Metrics server error: {}", e);
             }
         });
     }
 
-    let server = serve(config.listen, ua_parser);
+    let addr: SocketAddr = config
+        .listen
+        .parse()
+        .expect("Unable to parse socket address");
 
-    if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
-    }
-}
+    println!("Starting CDN server on http://{:}", addr);
 
-async fn shutdown_signal() {
-    // Wait for the CTRL+C signal
-    tokio::signal::ctrl_c()
-        .await
-        .expect("failed to install CTRL+C signal handler");
-}
+    let ua_parser_data = actix_web::web::Data::new(ua_parser);
 
-async fn serve(addr: String, ua_parser: Arc<UserAgentParser>) -> hyper::Result<()> {
-    let addr: SocketAddr = addr.parse().expect("Unable to parse socket address");
-
-    let make_svc = make_service_fn(move |_socket: &AddrStream| {
-        let ua_parser = ua_parser.clone();
-        async move {
-            Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
-                let ua_parser = ua_parser.clone();
-                async move {
-                    println!("Requested {:} {:}", req.method(), req.uri().path());
-                    let response = router::match_request_to_handler(req, ua_parser);
-                    Ok::<_, Infallible>(response)
-                }
-            }))
-        }
-    });
-
-    let server = Server::bind(&addr)
-        .serve(make_svc)
-        .with_graceful_shutdown(shutdown_signal());
-
-    println!("Listening TCP connections on http://{}", addr);
-
-    server.await
+    HttpServer::new(move || {
+        App::new()
+            .app_data(ua_parser_data.clone())
+            .service(get_image)
+            .service(check_health)
+            .service(ping)
+            .default_service(actix_web::web::to(|| HttpResponse::NotFound()))
+    })
+    .shutdown_timeout(Duration::from_secs(10).as_secs())
+    .bind(addr)?
+    .run()
+    .await
 }

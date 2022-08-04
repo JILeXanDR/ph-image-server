@@ -1,7 +1,3 @@
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-
-use serde::{Deserialize, Serialize};
 use serde_repr::*;
 
 use crate::models::traffic_channel::TrafficChannel::Unknown;

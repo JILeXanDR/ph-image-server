@@ -12,7 +12,7 @@ pub struct ShowStatistic {
     pub device: i8,
 }
 
-pub fn increment(stats: ShowStatistic) {
+pub fn increment(_stats: ShowStatistic) {
     // TODO: write stats.
     // go func() {
     //     err := w.stats.Increment(service.ShowStatistic{
