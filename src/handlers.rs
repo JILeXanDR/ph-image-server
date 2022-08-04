@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
 
 use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response, StatusCode};
@@ -15,7 +16,7 @@ use crate::stats;
 // http://127.0.0.1:9123/img.php?v=2&id=eyJpY29uIjoiaWNvbi5wbmciLCJ1aWQiOjExMSwiY2lkIjoyMjIsIm9zIjoxMjMsImJyb3dzZXIiOjEyLCJjb3VudHJ5IjoyMTMsIm9wZXJhdG9yIjoxMjMsInN1YkFjYyI6MjMsInN1YklkIjoyMjIyMjIsImFkdlR5cGUiOiJQdXNoIiwidHJhZmZpY0NoYW5uZWwiOiJGZWVkIn0=
 pub fn get_image(
     req: Request<Body>,
-    ua_parser: &UserAgentParser,
+    ua_parser: Arc<UserAgentParser>,
 ) -> Result<Response<Body>, Box<dyn Error>> {
     let mut response: Response<Body> = Response::new(Body::default());
 

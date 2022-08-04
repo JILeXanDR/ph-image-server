@@ -1,15 +1,12 @@
+use std::sync::Arc;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use tokio::time::Instant;
 use user_agent_parser::UserAgentParser;
 
 use crate::{handlers, metrics};
 
-pub fn match_request_to_handler(req: Request<Body>) -> Response<Body> {
+pub fn match_request_to_handler(req: Request<Body>, ua_parser: Arc<UserAgentParser>) -> Response<Body> {
     let started = Instant::now();
-
-    // FIXME: it must in main.rs.
-    let ua_parser =
-        UserAgentParser::from_path("etc/regexes.yaml").expect("Loading YAML file with regexes");
 
     let result = match (req.method(), req.uri().path()) {
         (&Method::GET, "/img.php") => {
@@ -17,7 +14,7 @@ pub fn match_request_to_handler(req: Request<Body>) -> Response<Body> {
             // if config.metrics.enabled {
             metrics::CDN_REQUESTS_COUNTER.inc();
             // }
-            handlers::get_image(req, &ua_parser)
+            handlers::get_image(req, ua_parser)
         }
         (&Method::GET, "/healthz") => handlers::check_health(req),
         (&Method::GET, "/ping") => handlers::ping(req),
