@@ -1,6 +1,7 @@
 use std::{error::Error, net::SocketAddr, time::Duration};
 
 use actix_web::{App, HttpResponse, HttpServer};
+use log::{debug, error, info};
 use tokio::spawn;
 use user_agent_parser::UserAgentParser;
 
@@ -16,6 +17,7 @@ mod metrics;
 mod models;
 mod stats;
 
+/// Runs app with behavior based on input config.
 pub async fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let ua_parser = UserAgentParser::from_path("etc/regexes.yaml")
         .or_else(|err| Err(format!("Failed to load YAML file with regexes: {:?}", err)))?;
@@ -30,10 +32,10 @@ pub async fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 .expect("Binding failed")
                 .run();
 
-            println!("Starting serving prometheus metrics on http://{:}", addr);
+            info!("Starting serving prometheus metrics on http://{:}", addr);
 
             if let Err(e) = server.await {
-                eprintln!("Metrics server error: {}", e);
+                error!("Metrics server error: {}", e);
             }
         });
     }
@@ -43,7 +45,7 @@ pub async fn run(config: Config) -> Result<(), Box<dyn Error>> {
         .parse()
         .expect("Unable to parse socket address");
 
-    println!("Starting CDN server on http://{:}", addr);
+    debug!("Starting CDN server on http://{:}", addr);
 
     let ua_parser_data = actix_web::web::Data::new(ua_parser);
 

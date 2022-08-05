@@ -1,4 +1,5 @@
 use actix_web::{get, http::StatusCode, web, HttpRequest, HttpResponseBuilder, Responder};
+use log::{debug, error, info};
 use serde::Deserialize;
 use user_agent_parser::UserAgentParser;
 
@@ -30,41 +31,43 @@ pub async fn get_image(
 ) -> impl Responder {
     metrics::CDN_REQUESTS_COUNTER.inc();
 
+    debug!(target: "get_image", "called");
+
     if params.version.is_none() {
-        println!("version is missing");
+        info!("version is missing");
         return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
     }
 
     let version = params.version.as_ref().unwrap();
 
     if version != "2" {
-        println!("version `{:}` not supported", version);
+        info!("version `{:}` not supported", version);
         return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
     }
 
     if params.payload.is_none() {
-        println!("id is missing");
+        info!("id is missing");
         return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
     }
 
     let id = params.payload.as_ref().unwrap();
     if id == "" {
-        println!("id is empty");
+        info!("id is empty");
         return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
     }
 
-    println!("found id `{:}`", id);
+    info!("found id `{:}`", id);
 
     let icon = IconRequest::from_base64(&id);
 
     if let Err(err) = icon {
-        println!("failed to decode id {:?}", err);
+        error!("failed to decode id {:?}", err);
         return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
     }
 
     let icon = icon.unwrap();
 
-    println!("decoded icon {:?}", icon);
+    info!("decoded icon {:?}", icon);
 
     let useragent = match req.headers().get("User-Agent") {
         Some(v) => v,

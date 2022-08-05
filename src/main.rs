@@ -1,6 +1,8 @@
 #![deny(elided_lifetimes_in_paths)]
 
-use std::error::Error;
+#[macro_use]
+extern crate log;
+extern crate pretty_env_logger;
 
 use clap::Parser;
 
@@ -19,21 +21,19 @@ struct Args {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    println!("Loading app with config file {}", args.config);
+    pretty_env_logger::init_timed();
+
+    debug!("Loading app with config file {}", args.config);
 
     let config = config::from_yaml_file_path(args.config).expect("Failed to get config");
 
-    println!("Config is ready {:#}", config);
-    println!("App is starting...");
+    debug!("Config is ready {:#}", config);
+    debug!("App is starting...");
 
     match run(config).await {
-        Ok(_) => {
-            println!("App stopped");
-            Ok(())
-        }
-        Err(err) => {
-            eprintln!("App error {:?}", err);
-            Ok(())
-        }
-    }
+        Ok(_) => info!("App stopped"),
+        Err(err) => error!("App error {:?}", err),
+    };
+
+    Ok(())
 }
