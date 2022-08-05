@@ -4,7 +4,7 @@ check:
 build: test
 	cargo build --release
 
-run: build
+run-prod: build
 	./target/release/ph-image-server
 
 test:

@@ -1,11 +1,5 @@
-use std::collections::HashMap;
-use std::{thread, time};
-
-use actix_web::{
-    get, http::header, http::StatusCode, web, HttpRequest, HttpResponseBuilder, Responder,
-};
+use actix_web::{get, http::StatusCode, web, HttpRequest, HttpResponseBuilder, Responder};
 use serde::Deserialize;
-use tokio::time::Sleep;
 use user_agent_parser::UserAgentParser;
 
 use crate::{

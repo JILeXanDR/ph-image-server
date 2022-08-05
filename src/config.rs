@@ -49,7 +49,7 @@ impl From<serde_yaml::Error> for ErrKind {
 }
 
 /// Build config using a YAML file loaded from given path.
-pub fn load(path: String) -> Result<Config, ErrKind> {
+pub fn from_yaml_file_path(path: String) -> Result<Config, ErrKind> {
     let mut file = File::open(path)?;
 
     let mut content: String = String::new();
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn load_missing_file() {
-        let result = load("wefwefwefwef.yaml".to_string());
+        let result = from_yaml_file_path("wefwefwefwef.yaml".to_string());
 
         match result {
             Err(ErrKind::ReadError(_)) => {}
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn load_file_with_bad_yaml() {
-        let result = load("testdata/bad_config.yaml".to_string());
+        let result = from_yaml_file_path("testdata/bad_config.yaml".to_string());
 
         match result {
             Err(ErrKind::DecodeError(_)) => {}
@@ -88,7 +88,8 @@ mod tests {
 
     #[test]
     fn load_valid_file() {
-        let config = load("testdata/config.yaml".to_string()).expect("failed to load config");
+        let config =
+            from_yaml_file_path("testdata/config.yaml".to_string()).expect("failed to load config");
 
         assert_eq!(
             config,
