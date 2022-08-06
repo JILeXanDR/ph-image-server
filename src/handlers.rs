@@ -10,7 +10,7 @@ use crate::{
         get_browser_from_parsed_user_agent, get_device_from_parsed_user_agent,
         get_os_from_parsed_user_agent,
     },
-    stats,
+    stats_reporter,
 };
 
 #[derive(Debug, Deserialize)]
@@ -71,7 +71,9 @@ pub async fn get_image(
 
     let useragent = match req.headers().get("User-Agent") {
         Some(v) => v,
-        None => panic!("no User-Agent header"), // TODO: don't panic!
+        None => {
+            return HttpResponseBuilder::new(StatusCode::BAD_REQUEST).finish();
+        }
     };
 
     let useragent = useragent.to_str().unwrap();
@@ -83,9 +85,7 @@ pub async fn get_image(
 
     let url = format!("/icon/{}/{}", icon.web_user_id, icon.icon);
 
-    let icon_json = serde_json::to_string(&icon).expect("Can't encode to JSON");
-
-    stats::increment(stats::ShowStatistic {
+    stats_reporter::increment(stats_reporter::ShowStatistic {
         uid: icon.web_user_id.clone(),
         cid: icon.campaign_id.clone(),
         os: get_os_from_parsed_user_agent(os),
@@ -99,7 +99,7 @@ pub async fn get_image(
 
     HttpResponseBuilder::new(StatusCode::OK)
         .insert_header(("X-Accel-Redirect", url))
-        .body(icon_json)
+        .finish()
 }
 
 // http://127.0.0.1:9123/healthz

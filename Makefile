@@ -8,4 +8,4 @@ run-prod: build
 	./target/release/ph-image-server
 
 test:
-	cargo test -v
+	cargo test

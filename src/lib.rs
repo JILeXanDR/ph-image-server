@@ -1,8 +1,10 @@
+extern crate core;
+
 use std::{error::Error, net::SocketAddr, time::Duration};
 
 use actix_web::{App, HttpResponse, HttpServer};
 use log::{debug, error, info};
-use tokio::spawn;
+use tokio::{spawn, task, time};
 use user_agent_parser::UserAgentParser;
 
 use crate::{
@@ -15,7 +17,7 @@ pub mod config;
 mod handlers;
 mod metrics;
 mod models;
-mod stats;
+mod stats_reporter;
 
 /// Runs app with behavior based on input config.
 pub async fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -39,6 +41,8 @@ pub async fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
         });
     }
+
+    stats_reporter::run_interval_flusher(config.report_to_v2, Duration::from_secs(10));
 
     let addr: SocketAddr = config
         .listen

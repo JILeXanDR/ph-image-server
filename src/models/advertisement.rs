@@ -2,7 +2,7 @@ use serde_repr::*;
 
 use crate::models::advertisement::Advertisement::Push;
 
-#[derive(Debug, PartialEq, Deserialize_repr, Serialize_repr, Copy, Clone)]
+#[derive(Debug, PartialEq, Deserialize_repr, Serialize_repr, Copy, Clone, Eq, Hash)]
 #[repr(u8)]
 pub enum Advertisement {
     Push = 0,   // 0
