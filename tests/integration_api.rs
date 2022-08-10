@@ -10,7 +10,7 @@ use ph_image_server::config::{Config, Metrics};
 fn get_default_config() -> Config {
     Config {
         listen: "127.0.0.1:44122".to_string(),
-        report_to_v2: "".to_string(),
+        report_to_v2: "http://some-host:9999/report-stats-v2?token=token".to_string(),
         metrics: Metrics {
             enabled: false,
             addr: "".to_string(),

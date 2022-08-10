@@ -59,8 +59,6 @@ impl IconRequest {
         let str = String::from_utf8(raw_json)
             .or_else(|err| Err(format!("Get UTF8 string: {:?}", err)))?;
 
-        println!("JSON = {:#}", str);
-
         let icon_request: IconRequest =
             serde_json::from_str(&str).or_else(|err| Err(format!("Decode JSON: {:?}", err)))?;
 
